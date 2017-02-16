@@ -13,7 +13,7 @@ our @COMPRESSION_SUFFIXES     = qw[bz2 gz xz zip];
 
 our @GENERAL_PURPOSE_SUFFIXES = qw[bin csv h5 tar tgz tif tsv txt xls xlsx xml];
 our @GENO_DATA_SUFFIXES       = qw[gtc idat];
-our @HTS_DATA_SUFFIXES        = qw[bam cram bai crai];
+our @HTS_DATA_SUFFIXES        = qw[bam cram bai crai fastq];
 our @HTS_ANCILLARY_SUFFIXES   = qw[bam_stats bamcheck bed flagstat json
                                    seqchksum stats xml];
 
@@ -103,10 +103,9 @@ sub make_type_metadata {
 
   my $suffix_pattern = join q[|], @valid_suffixes;
   my $suffix_regex = qr{[.]  # Don't capture the suffix dot
-                        (
                           ($suffix_pattern)
                           ([.]($COMPRESSION_PATTERN))*
-                        )$}msx;
+                        $}msx;
   my ($suffix) = $file =~ $suffix_regex;
 
   my @avus;
