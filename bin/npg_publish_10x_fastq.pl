@@ -52,7 +52,7 @@ my $verbose;
 my @positions;
 
 GetOptions('alt-process|alt_process=s'         => \$alt_process,
-           'tenx_fastq_path=s'                 => \$tenx_fastq_path,
+           'tenx-fastq-path|tenx_fastq_path=s' => \$tenx_fastq_path,
            'collection=s'                      => \$collection,
            'debug'                             => \$debug,
            'driver-type|driver_type=s'         => \$driver_type,
