@@ -1,3 +1,5 @@
+ - added support for 10x fastq files created by mkfastq and made
+   meta data more consistent with illumina alignment files
  - added script to archive 10x fastq files 
  - PacBio: remove dependancy on multi value user defined fields. Change
    run_uuid field to optional to support R&D runs/wells.  
