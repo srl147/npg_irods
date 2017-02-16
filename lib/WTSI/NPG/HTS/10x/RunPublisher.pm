@@ -162,8 +162,8 @@ sub list_plex_fastq_files {
 
   my $pos = $self->_check_position($position);
 
-  my $plex_file_pattern = sprintf '^.*_lane\-00%d\-chunk-00[\d][.]fastq[.]gz$',
-    $pos;
+  my $plex_file_pattern = sprintf '^.*_(lane\-00%d\-|L00%d_).*[.]fastq[.]gz$',
+    $pos, $pos;
 
   return [$self->list_directory($self->tenx_fastq_path,
                                 $plex_file_pattern)];

@@ -13,7 +13,19 @@ our $VERSION = '';
   Example    : my @pg_records = $obj->parse_file_name($path);
   Description: Return an array containing read, tag, position
                and format. The file must be named using the 10x
-               convention for fastq files e.g.
+               convention for fastq files which differs
+               dending on how the fastq files were generated
+
+               ..ranger mkfastq
+    
+                  21870_1_AACCGTAA_S4_L001_I1_001.fastq.gz
+                  21870_1_AACCGTAA_S4_L001_R1_001.fastq.gz
+
+               ..ranger undetermined mkfastq
+    
+                  Undetermined_S0_L007_I1_001.fastq.gz
+    
+               ..ranger demux
 
                   read-RA_si-TTTCATGA_lane-005-chunk-000.fastq.gz
                   read-I1_si-TTTCATGA_lane-005-chunk-000.fastq.gz
@@ -28,7 +40,45 @@ sub parse_file_name {
   my ($file_name, $directories, $suffix) = fileparse($path);
 
   ## no critic (RegularExpressions::ProhibitComplexRegexes)
-  my ($read,$tag,$position,$format) =
+
+  my ($id_run,$read,$tag,$position,$format);
+
+  # first ..ranger mkfastq format
+  ($id_run,$position,$tag,$read,$format) =
+            $file_name =~ m{
+                         ^(\d+)            # run id
+                         _                 # Separator
+                         (\d)              # Position
+                         _                 # Separator
+                         ([ACGTNX]+)       # Tag sequence
+                         _S\d+_            # Separator
+                         L00\2             # Position again
+                         _                 # Separator
+                         (I\d|R\d)         # Read
+                         _\d+              # chunk
+                         [.](fastq)[.]gz+$ # File format
+                     }mxs;
+  if ( defined $id_run && defined $read && defined $tag and defined $position && defined $format ) {
+    return ($id_run, $read, $tag, $position, $format);
+  }
+
+  # next ..ranger mkfastq undetermined format
+  ($tag,$position,$read,$format) =
+            $file_name =~ m{
+                         ^(Undetermined)   # Tag sequence
+                         _S\d+_            # Separator
+                         L00(\d)           # Position
+                         _                 # Separator
+                         (I\d|R\d)         # Read
+                         _\d+              # chunk
+                         [.](fastq)[.]gz+$ # File format
+                     }mxs;
+  if ( defined $read && defined $tag and defined $position && defined $format ) {
+    return ($id_run, $read, $tag, $position, $format);
+  }
+
+  # and finally ..ranger demux format
+  ($read,$tag,$position,$format) =
         $file_name =~ m{
                          ^read\-           # Separator
                          (I1|I2|RA)        # Read
@@ -40,8 +90,8 @@ sub parse_file_name {
                          \d+               # chunk
                          [.](fastq)[.]gz+$ # File format
                      }mxs;
-
-  return ($read, $tag, $position, $format);
+  
+  return ($id_run, $read, $tag, $position, $format);
 }
 
 no Moose::Role;
