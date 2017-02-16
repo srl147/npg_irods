@@ -119,6 +119,34 @@ with qw[
   }
 }
 
+=head2 make_target_metadata
+
+  Arg [1]      Tag index, Int. Optional.
+  Arg [1]      Spiked phix tag index, Int. Optional.
+  Arg [1]      Alternate process name, Str. Optional.
+
+  Example    : my @avus = $ann->make_alt_metadata('my_r&d_process');
+  Description: Return HTS alternate process metadata AVUs.
+  Returntype : Array[HashRef]
+
+=cut
+
+sub make_target_metadata {
+  my ($self, $tag_index, $spiked_phix_tag_index, $alt_process) = @_;
+
+  my $target = 1;
+  if ((defined $tag_index) and
+      (($tag_index == 0) or
+       (defined $spiked_phix_tag_index and $tag_index == $spiked_phix_tag_index))) {
+    $target = 0;
+  }
+  elsif ($alt_process) {
+    $target = 0;
+  }
+
+  return ($self->make_avu($TARGET, $target));
+}
+
 =head2 make_alt_metadata
 
   Arg [1]      Alternate process name, Str.
@@ -135,7 +163,10 @@ sub make_alt_metadata {
   defined $alt_process or
     $self->logconfess('A defined alt_process argument is required');
 
-  return ($self->make_avu($ALT_PROCESS, $alt_process));
+  my @avus = $self->make_avu($ALT_PROCESS, $alt_process);
+  push @avus, $self->make_avu($ALT_TARGET, 1);
+
+  return @avus;
 }
 
 =head2 make_seqchksum_metadata
@@ -177,7 +208,8 @@ sub make_seqchksum_metadata {
 {
   ## no critic (ValuesAndExpressions::ProhibitMagicNumbers)
   my $positional = 6;
-  my $params = function_params($positional);
+  my @named      = qw[alt_process];
+  my $params = function_params($positional, @named);
 
   sub make_secondary_metadata {
     my ($self, $factory, $id_run, $position, $read, $tag) = $params->parse(@_);
@@ -194,16 +226,14 @@ sub make_seqchksum_metadata {
       $self->logconfess('A defined tag argument is required');
 
     my $lims = $factory->make_lims($id_run, $position);
-    ($lims) = grep { $_->tag_sequence eq $tag } $lims->children;
-    if( !defined $lims ) {
-      $lims = $factory->make_lims($id_run, $position);
+
+    my ($tag_lims) = grep { $_->tag_sequence =~ m/^$tag/} $lims->children;
+    if( defined $tag_lims ) {
+      $lims = $tag_lims;
     }
-    defined $lims or
-      $self->logconfess("Failed to create st::api::lims for run $id_run ",
-                        "lane $position read $read tag $tag");
 
     my @avus;
-    push @avus, $self->make_plex_metadata($lims);
+    push @avus, $self->make_plex_metadata($lims, $params->alt_process);
     push @avus, $self->make_consent_metadata($lims);
     push @avus, $self->make_study_metadata($lims);
     push @avus, $self->make_sample_metadata($lims);
@@ -359,17 +389,38 @@ sub make_library_metadata {
 =cut
 
 sub make_plex_metadata {
-  my ($self, $lims) = @_;
+  my ($self, $lims, $alt_process) = @_;
 
   defined $lims or $self->logconfess('A defined lims argument is required');
 
   # Map of method name to attribute name under which the result will
   # be stored.
-  my $method_attr =
-  {tag_index => $TAG_INDEX,
-     qc_state  => $QC_STATE};
+  my $method_attr = {tag_index => $TAG_INDEX,
+                     qc_state  => $QC_STATE};
 
-  return $self->_make_multi_value_metadata($lims, $method_attr);
+  my @avus = $self->_make_multi_value_metadata($lims, $method_attr);
+
+  # what is the tag_index
+  my $tag_index = -1;
+  foreach my $avu (@avus) {
+    if ($avu->{attribute} eq q[tag_index]) {
+      $tag_index = $avu->{value};
+      last;
+    }
+  }
+  # if a tag_index avu doesn't exist create one with a value of 0
+  if ($tag_index == -1) {
+    $tag_index = 0;
+    push @avus, $self->make_avu($TAG_INDEX, $tag_index);
+  }
+  
+  my $spiked_phix_tag_index = $lims->spiked_phix_tag_index;
+
+  push @avus, $self->make_target_metadata($tag_index,
+                                          $spiked_phix_tag_index,
+                                          $alt_process);
+
+  return @avus
 }
 
 sub _make_multi_value_metadata {

@@ -25,9 +25,12 @@ has '+primary_metadata' =>
 sub BUILD {
   my ($self) = @_;
 
-  my ($read, $tag, $position, $file_format) =
+  my ($id_run, $read, $tag, $position, $file_format) =
     $self->parse_file_name($self->str);
 
+  if (defined $id_run and not defined $self->id_run) {
+    $self->set_id_run($id_run);
+  }
   if (defined $read and not defined $self->read) {
     $self->set_read($read);
   }
@@ -43,6 +46,7 @@ sub BUILD {
   # Modifying read-only attribute
   push @{$self->primary_metadata},
     $ALT_PROCESS,
+    $ALT_TARGET,
     $ID_RUN,
     $POSITION,
     $READ,
