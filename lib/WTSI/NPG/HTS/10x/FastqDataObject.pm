@@ -19,6 +19,9 @@ with qw[
          WTSI::NPG::HTS::10x::FilenameParser
        ];
 
+has '+is_restricted_access' =>
+  (is            => 'ro');
+
 has '+primary_metadata' =>
   (is => 'ro');
 
@@ -53,6 +56,12 @@ sub BUILD {
     $TAG;
 
   return;
+}
+
+sub _build_is_restricted_access {
+  my ($self) = @_;
+
+  return 1;
 }
 
 __PACKAGE__->meta->make_immutable;
