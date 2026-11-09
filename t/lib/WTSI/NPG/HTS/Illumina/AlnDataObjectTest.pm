@@ -22,9 +22,12 @@ use WTSI::DNAP::Warehouse::Schema;
 use WTSI::NPG::HTS::Illumina::AlnDataObject;
 use WTSI::NPG::HTS::LIMSFactory;
 use WTSI::NPG::HTS::Metadata;
+use WTSI::NPG::HTS::Samtools qw[put_xam];
 use WTSI::NPG::iRODS::Metadata;
 use WTSI::NPG::iRODS;
 use npg_tracking::glossary::composition;
+use npg_tracking::glossary::composition::component::illumina;
+use npg_tracking::glossary::composition::factory;
 
 {
   package TestDB;
@@ -58,19 +61,27 @@ my $run7915_lane5_tag1_human = '7915_5#1_human';
 my $run15440_lane1_tag0  = '15440_1#0';
 my $run15440_lane1_tag81 = '15440_1#81';
 
-my %file_composition =
-  ('7915_5#0'           => [7915,  5,  0,      undef],
-   '7915_5#1'           => [7915,  5,  1,      undef],
-   '7915_5#1_human'     => [7915,  5,  1,     'human'],
-   '15440_1#0'          => [15440, 1,  0,      undef],
-   '15440_1#81'         => [15440, 1, 81,      undef],
+my $no_reads_run15440_lane1 = 'no_reads_15440_1#0';
+my $one_read_run15440_lane1 = 'one_read_15440_1#0';
 
-   '17550_3#1'          => [17550, 3,  1,      undef],
-   '17550_3#1_human'    => [17550, 3,  1,    'human'],
-   '17550_3#1_nonhuman' => [17550, 3,  1, 'nonhuman'],
-   '17550_3#1_xahuman'  => [17550, 3,  1,  'xahuman'],
-   '17550_3#1_yhuman'   => [17550, 3,  1,   'yhuman'],
-   '17550_3#1_phix'     => [17550, 3,  1,     'phix']);
+my %file_composition =
+    (
+        '7915_5#0'           => [ 7915, 5, 0, undef ],
+        '7915_5#1'           => [ 7915, 5, 1, undef ],
+        '7915_5#1_human'     => [ 7915, 5, 1, 'human' ],
+        '15440_1#0'          => [ 15440, 1, 0, undef ],
+        '15440_1#81'         => [ 15440, 1, 81, undef ],
+
+        '17550_3#1'          => [ 17550, 3, 1, undef ],
+        '17550_3#1_human'    => [ 17550, 3, 1, 'human' ],
+        '17550_3#1_nonhuman' => [ 17550, 3, 1, 'nonhuman' ],
+        '17550_3#1_xahuman'  => [ 17550, 3, 1, 'xahuman' ],
+        '17550_3#1_yhuman'   => [ 17550, 3, 1, 'yhuman' ],
+        '17550_3#1_phix'     => [ 17550, 3, 1, 'phix' ],
+
+        'no_reads_15440_1#0' => [ 15440, 1, 0, undef ],
+        'one_read_15440_1#0' => [ 15440, 1, 0, undef ]
+    );
 
 my $invalid = "1000_1#1";
 
@@ -98,7 +109,8 @@ my $group_filter = sub {
 };
 
 # Groups to be added to the test iRODS
-my @irods_groups = map { $group_prefix . $_ } (10, 100, 198, 619, 2967, 3720);
+my @irods_groups = map { $group_prefix . $_ , $group_prefix . $_ . '_human' }
+                   (10, 100, 198, 619, 2967, 3720);
 push @irods_groups, $public_group;
 # Groups added to the test iRODS in fixture setup
 my @groups_added;
@@ -154,19 +166,15 @@ sub setup_test : Test(setup) {
   if ($samtools_available) {
     foreach my $data_file ($run7915_lane5_tag0, $run7915_lane5_tag1,
                            $run7915_lane5_tag1_human,
-                           $run15440_lane1_tag0, $run15440_lane1_tag81) {
-      WTSI::DNAP::Utilities::Runnable->new
-          (arguments  => ['view', '-C',
-                          '-T', "$data_path/$reference_file",
-                          '-o', "irods:$irods_tmp_coll/$data_file.cram",
-                                "$data_path/$data_file.sam"],
-           executable => 'samtools')->run;
-      WTSI::DNAP::Utilities::Runnable->new
-          (arguments  => ['view', '-b',
-                          '-T', "$data_path/$reference_file",
-                          '-o', "irods:$irods_tmp_coll/$data_file.bam",
-                                "$data_path/$data_file.sam"],
-           executable => 'samtools')->run;
+                           $run15440_lane1_tag0, $run15440_lane1_tag81,
+                           $no_reads_run15440_lane1, $one_read_run15440_lane1) {
+        put_xam("$data_path/$data_file.sam",
+                "$irods_tmp_coll/$data_file.cram",
+                "$data_path/$reference_file");
+
+        put_xam("$data_path/$data_file.sam",
+                "$irods_tmp_coll/$data_file.bam",
+                "$data_path/$reference_file");
       my @initargs = _build_initargs(\%file_composition, $data_file);
 
       foreach my $format (qw[bam cram]) {
@@ -178,13 +186,20 @@ sub setup_test : Test(setup) {
 
         my $num_reads = 10000;
 
-        my @avus;
-        push @avus, TestAnnotator->new->make_primary_metadata
-          ($obj->composition,
+        my $composition = $obj->composition;
+        my $component = $composition->get_component(0);
+        my %args = (
            is_paired_read => 1,
            is_aligned     => $obj->is_aligned,
            num_reads      => $num_reads,
-           reference      => $obj->reference);
+           reference      => $obj->reference, 
+        );
+        my $ta = TestAnnotator->new();
+
+        my @avus;
+        push @avus, $ta->make_primary_metadata($composition, %args),
+          $ta->make_alignment_metadata(
+            $component, $num_reads, $obj->reference, $obj->is_aligned);
 
         foreach my $avu (@avus) {
           my $attribute = $avu->{attribute};
@@ -258,41 +273,6 @@ sub position : Test(12) {
   }
 }
 
-sub contains_nonconsented_human : Test(12) {
-  my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
-                                    strict_baton_version => 0);
-
-  foreach my $format (qw[bam cram]) {
-    foreach my $path (sort grep { /17550/ } keys %file_composition) {
-      my $full_path = "/seq/17550/$path.$format";
-      my @initargs = _build_initargs(\%file_composition, $path);
-
-      my $obj = WTSI::NPG::HTS::Illumina::AlnDataObject->new
-        ($irods, $full_path, @initargs);
-
-      my $ss = $obj->subset;
-      if (not $ss) {
-        ok(!$obj->contains_nonconsented_human,
-           "$full_path is not nonconsented human");
-      }
-      elsif ($ss eq 'nonhuman' or
-             $ss eq 'yhuman'   or
-             $ss eq 'phix') {
-        ok(!$obj->contains_nonconsented_human,
-           "$full_path is not nonconsented human ($ss)");
-      }
-      elsif ($ss eq 'human' or
-             $ss eq 'xahuman') {
-        ok($obj->contains_nonconsented_human,
-           "$full_path is nonconsented human ($ss)");
-      }
-      else {
-        fail "Unexpected alignment_filter '$ss'";
-      }
-    }
-  }
-}
-
 sub is_restricted_access : Test(12) {
   my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                     strict_baton_version => 0);
@@ -314,7 +294,7 @@ sub is_paired_read : Test(4) {
   my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                     strict_baton_version => 0);
  foreach my $format (qw[bam cram]) {
-    foreach my $path (sort grep { /15440/ } keys %file_composition) {
+    foreach my $path (sort grep { /^15440/ } keys %file_composition) {
       my $full_path = "$irods_tmp_coll/$path.$format";
       my @initargs = _build_initargs(\%file_composition, $path);
 
@@ -333,6 +313,59 @@ sub is_paired_read : Test(4) {
       }
     }
   }
+}
+
+sub is_paired_read_empty : Test(6) {
+  my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
+                                    strict_baton_version => 0);
+
+    foreach my $format (qw[bam cram]) {
+        my $obj = WTSI::NPG::HTS::Illumina::AlnDataObject->new
+            ($irods, "$irods_tmp_coll/$no_reads_run15440_lane1.$format",
+                id_run    => 15440,
+                position  => 1,
+                tag_index => 0,
+                file_format => $format);
+        ok(!$obj->has_num_reads, "No external read count supplied");
+        ok(!$obj->is_paired_read, "An empty bam/cram file is not paired");
+
+        dies_ok {
+          $obj = WTSI::NPG::HTS::Illumina::AlnDataObject->new
+            ($irods, "$irods_tmp_coll/$no_reads_run15440_lane1.$format",
+                id_run    => 15440,
+                position  => 1,
+                tag_index => 0,
+                file_format => $format,
+                num_reads => 1);
+            !$obj->is_paired_read
+        } "Fails when mismatched non-zero external read count supplied";
+    }
+}
+
+sub is_paired_read_one_read : Test(4) {
+    my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
+                                      strict_baton_version => 0);
+
+    foreach my $format (qw[bam cram]) {
+        my $obj = WTSI::NPG::HTS::Illumina::AlnDataObject->new
+            ($irods, "$irods_tmp_coll/$one_read_run15440_lane1.$format",
+                id_run    => 15440,
+                position  => 1,
+                tag_index => 0,
+                file_format => $format);
+        ok($obj->is_paired_read, "$one_read_run15440_lane1.$format is paired");
+
+        dies_ok {
+            $obj = WTSI::NPG::HTS::Illumina::AlnDataObject->new
+                ($irods, "$irods_tmp_coll/$one_read_run15440_lane1.$format",
+                    id_run      => 15440,
+                    position    => 1,
+                    tag_index   => 0,
+                    file_format => $format,
+                    num_reads   => 2);
+            $obj->is_paired_read
+        } "Fails when mismatched non-zero external read count supplied";
+    }
 }
 
 sub tag_index : Test(12) {
@@ -401,7 +434,9 @@ sub nonconsented_human_access_revoked : Test(6) {
        {attribute => $SAMPLE_COMMON_NAME,
         value     => 'Burkholderia pseudomallei'},
        {attribute => $SAMPLE_ID,                value => '230889'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => '153.0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b4ebaa-c628-11df-8e7f-00144f2062b0'},
        {attribute => $STUDY_NAME,
         value     => 'Burkholderia pseudomallei diversity'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'ERP000251'},
@@ -422,7 +457,7 @@ sub nonconsented_human_access_revoked : Test(6) {
                           expected_groups_before => [$public_group,
                                                      'ss_10',
                                                      'ss_100'],
-                          expected_groups_after  => [] # all access removed
+                          expected_groups_after  => ['ss_619_human']
                          });
   }
 }
@@ -706,6 +741,7 @@ sub update_secondary_metadata_tag0_no_spike_bact : Test(12) {
        {attribute => $SAMPLE_ID,                value => '230919'},
        {attribute => $SAMPLE_ID,                value => '230920'},
        {attribute => $SAMPLE_ID,                value => '230921'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => '10/96'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => '109/96'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => '15/96'},
@@ -739,6 +775,39 @@ sub update_secondary_metadata_tag0_no_spike_bact : Test(12) {
        {attribute => $SAMPLE_PUBLIC_NAME,       value => 'K11277244-293'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => 'P73230-3018'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => 'SOIL'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b4ebaa-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b4f3ac-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b4fbae-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b503a6-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b50b9e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b51396-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b51ba2-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5239a-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b52b92-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5338a-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b53b82-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5437a-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b54b7c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b55374-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b55b94-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5638c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b56bb6-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b573ae-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b57bb0-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b583a8-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b58b96-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5938e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b59b86-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5a37e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5ab6c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5b364-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5bb5c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5c35e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5cb4c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5d34e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5db46-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5e352-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b5eb54-c628-11df-8e7f-00144f2062b0'},
        {attribute => $STUDY_NAME,
         value     => 'Burkholderia pseudomallei diversity'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'ERP000251'},
@@ -931,6 +1000,7 @@ sub update_secondary_metadata_tag0_spike_bact : Test(12) {
        {attribute => $SAMPLE_ID,               value => '230919'},
        {attribute => $SAMPLE_ID,               value => '230920'},
        {attribute => $SAMPLE_ID,               value => '230921'},
+       {attribute => $SAMPLE_LIMS,             value => 'SQSCP'},
        {attribute => $SAMPLE_PUBLIC_NAME,      value => '10/96'},
        {attribute => $SAMPLE_PUBLIC_NAME,      value => '109/96'},
        {attribute => $SAMPLE_PUBLIC_NAME,      value => '15/96'},
@@ -964,6 +1034,40 @@ sub update_secondary_metadata_tag0_spike_bact : Test(12) {
        {attribute => $SAMPLE_PUBLIC_NAME,      value => 'K11277244-293'},
        {attribute => $SAMPLE_PUBLIC_NAME,      value => 'P73230-3018'},
        {attribute => $SAMPLE_PUBLIC_NAME,      value => 'SOIL'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b4ebaa-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b4f3ac-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b4fbae-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b503a6-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b50b9e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b51396-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b51ba2-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5239a-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b52b92-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5338a-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b53b82-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5437a-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b54b7c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b55374-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b55b94-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5638c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b56bb6-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b573ae-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b57bb0-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b583a8-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b58b96-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5938e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b59b86-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5a37e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5ab6c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5b364-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5bb5c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5c35e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5cb4c-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5d34e-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5db46-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5e352-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'a8b5eb54-c628-11df-8e7f-00144f2062b0'},
+       {attribute => $SAMPLE_UUID,             value => 'd3a59c4c-c037-11e0-834c-00144f01a414'},
        {attribute => $STUDY_NAME,
         value     => 'Burkholderia pseudomallei diversity'},
        {attribute => $STUDY_NAME,
@@ -1025,7 +1129,9 @@ sub update_secondary_metadata_tag1_no_spike_bact : Test(12) {
        {attribute => $SAMPLE_COMMON_NAME,
         value     => 'Burkholderia pseudomallei'},
        {attribute => $SAMPLE_ID,                value => '230889'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => '153.0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b4ebaa-c628-11df-8e7f-00144f2062b0'},
        {attribute => $STUDY_NAME,
         value     => 'Burkholderia pseudomallei diversity'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'ERP000251'},
@@ -1083,7 +1189,9 @@ sub update_secondary_metadata_tag1_spike_bact : Test(12) {
        {attribute => $SAMPLE_COMMON_NAME,
         value     => 'Burkholderia pseudomallei'},
        {attribute => $SAMPLE_ID,                value => '230889'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_PUBLIC_NAME,       value => '153.0'},
+       {attribute => $SAMPLE_UUID,              value => 'a8b4ebaa-c628-11df-8e7f-00144f2062b0'},
        {attribute => $STUDY_NAME,
         value     => 'Burkholderia pseudomallei diversity'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'ERP000251'},
@@ -1156,10 +1264,15 @@ sub update_secondary_metadata_tag0_no_spike_human : Test(12) {
        {attribute => $SAMPLE_ID,                value => '1877289'},
        {attribute => $SAMPLE_ID,                value => '1877292'},
        {attribute => $SAMPLE_ID,                value => '1877306'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '6AJ182'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '7R5'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '8AJ1'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '8R163'},
+       {attribute => $SAMPLE_UUID,              value => 'd41d4a40-a521-11e3-8055-3c4a9275d6c6'},
+       {attribute => $SAMPLE_UUID,              value => 'd492a150-a521-11e3-8055-3c4a9275d6c6'},
+       {attribute => $SAMPLE_UUID,              value => 'd4ee2ed0-a521-11e3-8055-3c4a9275d6c6'},
+       {attribute => $SAMPLE_UUID,              value => 'd62d8ca0-a521-11e3-8055-3c4a9275d6c6'},
        {attribute => $STUDY_NAME,
         value     => 'SEQCAP_Lebanon_LowCov-seq'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'EGAS00001002084'},
@@ -1236,10 +1349,16 @@ sub update_secondary_metadata_tag0_spike_human : Test(12) {
        {attribute => $SAMPLE_ID,                value => '1877289'},
        {attribute => $SAMPLE_ID,                value => '1877292'},
        {attribute => $SAMPLE_ID,                value => '1877306'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '6AJ182'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '7R5'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '8AJ1'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '8R163'},
+       {attribute => $SAMPLE_UUID,              value => 'd3a59c4c-c037-11e0-834c-00144f01a414'},
+       {attribute => $SAMPLE_UUID,              value => 'd41d4a40-a521-11e3-8055-3c4a9275d6c6'},
+       {attribute => $SAMPLE_UUID,              value => 'd492a150-a521-11e3-8055-3c4a9275d6c6'},
+       {attribute => $SAMPLE_UUID,              value => 'd4ee2ed0-a521-11e3-8055-3c4a9275d6c6'},
+       {attribute => $SAMPLE_UUID,              value => 'd62d8ca0-a521-11e3-8055-3c4a9275d6c6'},
        {attribute => $STUDY_NAME,               value => 'Illumina Controls'},
        {attribute => $STUDY_NAME,
         value     => 'SEQCAP_Lebanon_LowCov-seq'},
@@ -1300,7 +1419,9 @@ sub update_secondary_metadata_tag81_no_spike_human : Test(12) {
        {attribute => $SAMPLE_COMMON_NAME,       value => 'Homo Sapien'},
        {attribute => $SAMPLE_DONOR_ID,          value => 'T19PG5759041'},
        {attribute => $SAMPLE_ID,                value => '1877285'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '7R5'},
+       {attribute => $SAMPLE_UUID,              value => 'd41d4a40-a521-11e3-8055-3c4a9275d6c6'},
        {attribute => $STUDY_NAME,
         value     => 'SEQCAP_Lebanon_LowCov-seq'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'EGAS00001002084'},
@@ -1358,7 +1479,9 @@ sub update_secondary_metadata_tag81_spike_human : Test(12) {
        {attribute => $SAMPLE_COMMON_NAME,       value => 'Homo Sapien'},
        {attribute => $SAMPLE_DONOR_ID,          value => 'T19PG5759041'},
        {attribute => $SAMPLE_ID,                value => '1877285'},
+       {attribute => $SAMPLE_LIMS,              value => 'SQSCP'},
        {attribute => $SAMPLE_SUPPLIER_NAME,     value => '7R5'},
+       {attribute => $SAMPLE_UUID,              value => 'd41d4a40-a521-11e3-8055-3c4a9275d6c6'},
        {attribute => $STUDY_NAME,
         value     => 'SEQCAP_Lebanon_LowCov-seq'},
        {attribute => $STUDY_ACCESSION_NUMBER,   value => 'EGAS00001002084'},
@@ -1384,6 +1507,83 @@ sub update_secondary_metadata_tag81_spike_human : Test(12) {
                             expected_groups_after  => ['ss_2967']});
     }
   } # SKIP samtools
+}
+
+sub validate_composition : Test(8) {
+ 
+  my $annotator = TestAnnotator->new();
+
+  my $c_class = 'npg_tracking::glossary::composition::component::illumina';
+  my $fclass = 'npg_tracking::glossary::composition::factory';
+
+  my $c1 = $c_class->new(id_run => 2, position => 3);
+  my $c2 = $c_class->new(id_run => 2, position => 3, subset => 'human');
+  my $c3 = $c_class->new(id_run => 2, position => 3, tag_index => 3, subset => 'human');
+  my $c4 = $c_class->new(id_run => 2, position => 4, tag_index => 3, subset => 'phix');
+  my $c5 = $c_class->new(id_run => 2, position => 4, tag_index => 0);
+  my $c6 = $c_class->new(id_run => 2, position => 6, tag_index => 0);
+  my $c7 = $c_class->new(id_run => 2, position => 6, tag_index => 5);
+  my $c8 = $c_class->new(id_run => 2, position => 6, tag_index => 7);
+
+  my $f = $fclass->new();
+  $f->add_component($c1);
+  my $composition = $f->create_composition();
+  lives_ok { $annotator->_validate_composition($composition) }
+    'no error for ' . $composition->freeze();
+
+  $f = $fclass->new();
+  $f->add_component($c2);
+  $f->add_component($c3);
+  $composition = $f->create_composition();
+  lives_ok { $annotator->_validate_composition($composition) }
+    'no error for ' . $composition->freeze();
+
+
+  $f = $fclass->new();
+  $f->add_component($c1);
+  $f->add_component($c2);
+  $composition = $f->create_composition();
+  throws_ok { $annotator->_validate_composition($composition) }
+    qr/Different subset values/,
+    'subset error for ' . $composition->freeze();
+
+  $f = $fclass->new();
+  $f->add_component($c3);
+  $f->add_component($c4);
+  $composition = $f->create_composition();
+  throws_ok { $annotator->_validate_composition($composition) }
+    qr/Different subset values/,
+    'subset error for ' . $composition->freeze();
+
+  $f = $fclass->new();
+  $f->add_component($c5);
+  $f->add_component($c6);
+  $composition = $f->create_composition();
+  lives_ok { $annotator->_validate_composition($composition) }
+    'no error for ' . $composition->freeze();
+  
+  $f = $fclass->new();
+  $f->add_component($c7);
+  $f->add_component($c8);
+  $composition = $f->create_composition();
+  lives_ok { $annotator->_validate_composition($composition) }
+    'no error for ' . $composition->freeze();
+  
+  $f = $fclass->new();
+  $f->add_component($c1);
+  $f->add_component($c6);
+  $composition = $f->create_composition();
+  throws_ok { $annotator->_validate_composition($composition) }
+    qr/A mixture of tag zero and other indexes/,
+    'tag_index error for ' . $composition->freeze();
+  
+  $f = $fclass->new();
+  $f->add_component($c6);
+  $f->add_component($c7);
+  $composition = $f->create_composition();
+  throws_ok { $annotator->_validate_composition($composition) }
+    qr/A mixture of tag zero and other indexes/,
+    'tag index error for ' . $composition->freeze();
 }
 
 sub test_metadata_update {

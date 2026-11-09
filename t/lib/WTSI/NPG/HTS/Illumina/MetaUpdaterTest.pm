@@ -17,6 +17,7 @@ use WTSI::DNAP::Warehouse::Schema;
 use WTSI::NPG::HTS::Illumina::MetaUpdater;
 use WTSI::NPG::HTS::LIMSFactory;
 use WTSI::NPG::HTS::Metadata;
+use WTSI::NPG::HTS::Samtools qw[put_xam];
 use WTSI::NPG::iRODS::Metadata;
 use WTSI::NPG::iRODS;
 
@@ -69,19 +70,13 @@ sub setup_test : Test(setup) {
   $test_counter++;
 
   if ($samtools_available) {
-    WTSI::DNAP::Utilities::Runnable->new
-        (arguments  => ['view', '-C',
-                        '-T', "$data_path/$reference_file",
-                        '-o', "irods:$irods_tmp_coll/$data_file.cram",
-                        "$data_path/$data_file.sam"],
-         executable => 'samtools')->run;
+      put_xam("$data_path/$data_file.sam",
+              "$irods_tmp_coll/$data_file.cram",
+              "$data_path/$reference_file");
 
-    WTSI::DNAP::Utilities::Runnable->new
-        (arguments  => ['view', '-b',
-                        '-T', "$data_path/$reference_file",
-                        '-o', "irods:$irods_tmp_coll/$data_file.bam",
-                        "$data_path/$data_file.sam"],
-         executable => 'samtools')->run;
+      put_xam("$data_path/$data_file.sam",
+              "$irods_tmp_coll/$data_file.bam",
+              "$data_path/$reference_file");
   }
 
   $irods->add_collection("$irods_tmp_coll/qc");
@@ -139,7 +134,9 @@ sub update_secondary_metadata : Test(5) {
             { attribute => $SAMPLE_COMMON_NAME,
               value     => 'Burkholderia pseudomallei' },
             { attribute => $SAMPLE_ID, value => '230889' },
+            { attribute => $SAMPLE_LIMS, value => 'SQSCP' },
             { attribute => $SAMPLE_PUBLIC_NAME, value => '153.0' },
+            { attribute => $SAMPLE_UUID, value => 'a8b4ebaa-c628-11df-8e7f-00144f2062b0' },
             { attribute => $STUDY_NAME,
               value     => 'Burkholderia pseudomallei diversity' },
             { attribute => $STUDY_ACCESSION_NUMBER, value => 'ERP000251' },

@@ -88,12 +88,12 @@ has 'results_folder' =>
    predicate     => 'has_results_folder',
    documentation => 'The results folder');
 
-has 'is_ccs' =>
+has 'execution_mode' =>
   (isa           => 'Str',
    is            => 'ro',
    required      => 0,
-   predicate     => 'has_is_ccs',
-   documentation => 'Is the PacBio data ccs');
+   predicate     => 'has_execution_mode',
+   documentation => 'Execution mode for running css (if required)');
 
 has 'subreads_uuid' =>
   (isa           => 'Str',
@@ -115,6 +115,14 @@ has 'version_info'  =>
    required      => 0,
    predicate     => 'has_version_info',
    documentation => 'The PacBio version info');
+
+has 'plate_number'  =>
+  (isa           => 'Int',
+   is            => 'ro',
+   required      => 0,
+   predicate     => 'has_plate_number',
+   documentation => 'The plate number - only relevant for Revio runs');
+
 
 
 around BUILDARGS => sub {

@@ -22,7 +22,8 @@ has 'mlwh_schema' =>
 
   Arg [1]    : PacBio run ID, Str.
   Arg [2]    : PacBio plate well, zero-padded form, Str. E.g. 'A01'.
-  Arg [3]    : Tag identifier, Optional.
+  Arg [3]    : Tag identifier, Str. Optional.
+  Arg [4]    : Plate number - only relevant for Revio runs, Int. Optional.
 
   Example    : @run_records - $obj->find_runs($id, 'A01');
   Description: Returns run records for a PabcBio run. Pre-fetches related
@@ -32,12 +33,49 @@ has 'mlwh_schema' =>
 =cut
 
 sub find_pacbio_runs {
-  my ($self, $run_id, $well, $tag_id) = @_;
+  my ($self, $run_id, $well, $tag_id, $plate_number) = @_;
 
   defined $run_id or
     $self->logconfess('A defined run_id argument is required');
   defined $well or
     $self->logconfess('A defined well argument is required');
+
+  my $well_label = $self->remove_well_padding($run_id, $well);
+
+  my $query      = {pac_bio_run_name => $run_id,
+                    well_label       => $well_label};
+
+  if (defined $tag_id) {
+      $query->{tag_identifier} = $tag_id;
+  }
+  if (defined $plate_number) {
+      $query->{plate_number}   = $plate_number;
+  }
+
+  my @unique_records = $self->mlwh_schema->resultset('PacBioRun')->search
+    ($query,  {prefetch => ['sample', 'study'],
+     group_by => [qw/pac_bio_run_name plate_number well_label tag_identifier/]});
+
+  my $num_records = scalar @unique_records;
+  $self->debug("Found $num_records records for PacBio ",
+               "run $run_id, well $well_label");
+  return @unique_records;
+}
+
+=head2 remove_well_padding
+
+  Arg[1]     : PacBio run ID, Str.
+  Arg[2]     : PacBio plate well, zero-padded form, Str. E.g. 'A01'.
+
+  Example    : $well_label = remove_well_padding($run_id, $well);
+  Description: Strips the padding out of the well label to match the unpadded
+               labels in ml_warehouse.
+  ReturnType : Str
+
+=cut
+
+sub remove_well_padding{
+  my ($self, $run_id, $well) = @_;
 
   # Well addresses are unpadded in the ML warehouse
   my ($row, $col) = $well =~ m{^([[:upper:]])([[:digit:]]+)$}msx;
@@ -49,23 +87,8 @@ sub find_pacbio_runs {
                     "of PacBio run '$run_id'");
   }
 
-  my $well_label = "$row$col";
+  return "$row$col";
 
-  my $query      = {pac_bio_run_name => $run_id,
-                    well_label       => $well_label};
-
-  if (defined $tag_id){
-      $query->{tag_identifier} = $tag_id;
-  }
-
-  my @unique_records = $self->mlwh_schema->resultset('PacBioRun')->search
-    ($query,  {prefetch => ['sample', 'study'],
-     group_by => [qw/pac_bio_run_name well_label tag_identifier/]});
-
-  my $num_records = scalar @unique_records;
-  $self->debug("Found $num_records records for PacBio ",
-               "run $run_id, well $well_label");
-  return @unique_records;
 }
 
 no Moose::Role;

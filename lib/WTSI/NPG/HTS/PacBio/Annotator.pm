@@ -18,12 +18,14 @@ with qw[
   Named args : data_level     Processing level of data being archived
                               e.g. Primary - off  instrument, secondary
                               - subsequently post processed. Optional.
+               id_product     Product id for the data. Optional.
                is_target      Is target? If false then target flag
                               is not set. Data is not target where it
                               is not deplexed or where data at a different
                               data level is the default for the customer.
                               Boolean. Defaults to true.
                is_r_and_d     Is data R & D? Boolean. Defaults to false.
+               isoseq_primers IsoSeq primers. Optional.
 
   Example    : my @avus = $ann->make_primary_metadata($metadata);
   Description: Return instrument, run, cell index, collection number, set
@@ -35,7 +37,7 @@ with qw[
 
 {
     my $positional = 2;
-    my @named      = qw[data_level is_target is_r_and_d ];
+    my @named      = qw[data_level id_product is_target is_r_and_d isoseq_primers];
     my $params     = function_params($positional, @named);
 
     sub make_primary_metadata {
@@ -52,9 +54,15 @@ with qw[
         push @avus, $self->make_avu($PACBIO_WELL,              $metadata->well_name);
         push @avus, $self->make_avu($PACBIO_SAMPLE_LOAD_NAME,  $metadata->sample_load_name);
 
+
         if ($params->data_level) {
             push @avus, $self->make_avu($PACBIO_DATA_LEVEL, $params->data_level);
         }
+
+        if ($metadata->plate_number) {
+            push @avus, $self->make_avu($PACBIO_PLATE_NUMBER, $metadata->plate_number);
+        }
+
 
         # Deprecated field, used in early version of RS
         if ($metadata->has_set_number){
@@ -72,6 +80,14 @@ with qw[
 
         if ($params->is_target || !defined $params->is_target) {
             push @avus, $self->make_avu($TARGET, 1);
+        }
+
+        if ($params->id_product) {
+            push @avus, $self->make_avu($ID_PRODUCT, $params->id_product);
+        }
+
+        if ($params->isoseq_primers) {
+            push @avus, $self->make_avu($PACBIO_ISOSEQ_PRIMERS, $params->isoseq_primers);
         }
 
         return @avus;
@@ -145,6 +161,8 @@ sub make_sample_metadata {
   my @samples = map { $_->sample } @run_records;
   my $method_attr = {accession_number => $SAMPLE_ACCESSION_NUMBER,
                      id_sample_lims   => $SAMPLE_ID,
+                     id_lims          => $SAMPLE_LIMS,
+                     uuid_sample_lims => $SAMPLE_UUID,
                      name             => $SAMPLE_NAME,
                      public_name      => $SAMPLE_PUBLIC_NAME,
                      common_name      => $SAMPLE_COMMON_NAME,
@@ -214,6 +232,51 @@ sub make_tag_metadata {
   return $self->_make_multi_value_metadata(\@run_records, $method_attr);
 }
 
+=head2 make_qc_metadata
+
+  Arg [n]      PacBio run database records,
+               List[WTSI::DNAP::Warehouse::Schema::Result::PacBioRun].
++
+  Example    : my @avus = $ann->make_qc_metadata(@run_records);
+  Description: Return QC outcome AVU metadata for a single product.
+
+               An empty list is returned if the input list contains
+               either no records or multiple records or the only record
+               is not linked to a record in the pac_bio_product_metrics
+               table.
+
+               This method should be called in the context of a single
+               iRODS object. If, according to a record in the pac_bio_run
+               table, a well contains multiple samples, but in practice
+               no deplexing was done, when trying to establish data
+               provenance we might get multiple pac_bio_run table rows.
+               Opting out of assigning a QC outcome in this case is
+               a conscious conservative decision that was made at the
+               time of writing (March 2024).
+
+  Returntype : List[HashRef]
+
+=cut
+
+sub make_qc_metadata {
+  my ($self, @run_records) = @_;
+
+   my @avus = ();
+  if (@run_records == 1) {
+    my @product_metrics = $run_records[0]->pac_bio_product_metrics()->all();
+    # Absence of linked product records is not unknown, one linked product
+    # record is normal, multiple linked records is, most likely, an error.
+    if (@product_metrics == 1) {
+      my $qc_outcome = $product_metrics[0]->qc();
+      if (defined $qc_outcome) {
+        push @avus, $self->make_avu($QC_STATE, $qc_outcome);
+      }
+    }
+  }
+
+  return @avus;
+}
+
 sub _make_multi_value_metadata {
   my ($self, $objs, $method_attr) = @_;
   # The method_attr argument is a map of method name to attribute name
@@ -258,7 +321,7 @@ Keith James <kdj@sanger.ac.uk>
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-Copyright (C) 2016, 2017 Genome Research Limited. All Rights Reserved.
+Copyright (C) 2016, 2017, 2024 Genome Research Limited. All Rights Reserved.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the Perl Artistic License or the GNU General

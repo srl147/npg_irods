@@ -11,7 +11,7 @@ use Pod::Usage;
 
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::NPG::iRODS;
-use WTSI::NPG::HTS::PacBio::Sequel::RunPublisher;
+use WTSI::NPG::HTS::PacBio::RunPublisher;
 
 our $VERSION = '';
 
@@ -56,7 +56,7 @@ GetOptions('collection=s'                    => \$collection,
 
 
 
-my   $module = 'WTSI::NPG::HTS::PacBio::Sequel::RunPublisher';
+my   $module = 'WTSI::NPG::HTS::PacBio::RunPublisher';
 
 # Process CLI arguments
 if ($log4perl_config) {
@@ -99,6 +99,7 @@ sub handler {
 
   $log->info('Writing restart file ', $publisher->restart_file);
   $publisher->write_restart_file;
+  $publisher->write_locations;
   $log->error("Exiting due to $signal");
   exit 1;
 }

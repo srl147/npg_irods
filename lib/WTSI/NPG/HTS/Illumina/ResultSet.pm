@@ -72,12 +72,15 @@ our %ILLUMINA_PART_PATTERNS =
        '[.]seqchksum',
        '[.]sha512primesums512[.]seqchksum',
        '[.]spatial_filter[.]stats',
-       '_substitution_analysis.txt',      # non-conforming file name
-       '_substitution_metrics.txt',       # non-conforming file name
+       '.substitution_analysis.txt',      # non-conforming file name
+       '.substitution_metrics.txt',       # non-conforming file name
        '_target[.]stats',                 # non-conforming file name
        '_target_autosome[.]stats',        # non-conforming file name
        '[.]stats',
-       '[.]txt';
+       '[.]txt',
+       '[.]_SamHaplotag_Clear_BC',           # more non-conformist file names
+       '[.]_SamHaplotag_UnClear_BC',
+       '[.]_SamHaplotag_Missing_BC_QT_tags';
    },
    qc_regex        => sub {
      my $name = shift;
@@ -86,6 +89,7 @@ our %ILLUMINA_PART_PATTERNS =
        '[.]adapter[.]json',
        '[.]alignment_filter_metrics[.]json',
        '[.]bam_flagstats[.]json',
+       '[.]gatk_collecthsmetrics[.]txt',           # non-conforming file name
        '[.]gc_bias[.]json',
        '[.]gc_fraction[.]json',
        '[.]gc_fraction[.]json',
@@ -94,10 +98,12 @@ our %ILLUMINA_PART_PATTERNS =
        '[.]pulldown_metrics[.]json',
        '[.]qX_yield[.]json',
        '[.]ref_match[.]json',
+       '[.]rna_seqc[.]json',
        '[.]samtools_stats[.]json',
        '[.]sequence_error[.]json',
        '[.]sequence_summary[.]json',
        '[.]spatial_filter[.]json',
+       '[.]substitution_metrics[.]json',
        '[.]verify_bam_id[.]json',
        '_target[.]samtools_stats[.]json',          # non-conforming file name
        '_target_autosome[.]samtools_stats[.]json'; # non-conforming file name

@@ -11,6 +11,9 @@ use WTSI::DNAP::Utilities::Params qw[function_params];
 use WTSI::NPG::HTS::BatchPublisher;
 use WTSI::NPG::HTS::PublishState;
 
+use JSON;
+use Readonly;
+
 with qw[
          WTSI::DNAP::Utilities::Loggable
          WTSI::NPG::HTS::RunPublisher
@@ -18,6 +21,7 @@ with qw[
        ];
 
 our $VERSION = '';
+Readonly::Scalar my $JSON_FILE_VERSION => '1.1';
 
 has 'obj_factory' =>
     (does          => 'WTSI::NPG::HTS::DataObjectFactory',
@@ -146,6 +150,10 @@ has 'require_checksum_cache' =>
            publish_state          => $self->publish_state,
            require_checksum_cache => $self->require_checksum_cache);
 
+      if ($self->mlwh_locations){
+
+           push @init_args, mlwh_locations => $self->mlwh_locations;
+      }
       if ($self->has_max_errors) {
         if ($num_errors >= $self->max_errors) {
           $self->error("The number of errors $num_errors reached the maximum ",
@@ -247,7 +255,7 @@ Keith James <kdj@sanger.ac.uk>
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-Copyright (C) 2019 Genome Research Limited. All Rights Reserved.
+Copyright (C) 2019, 2021 Genome Research Limited. All Rights Reserved.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the Perl Artistic License or the GNU General

@@ -8323,3 +8323,207 @@
   phenotype: ~
   developmental_stage: ~
   control_type: ~
+- id_sample_tmp: '8162355'
+  id_lims: SQSCP
+  uuid_sample_lims: c0502400-bfc7-11ec-9167-fa163eac3af7
+  id_sample_lims: '8227008'
+  last_updated: '2022-04-19 10:01:58'
+  recorded_at: '2022-04-19 10:01:59'
+  deleted_at: ~
+  created: '2022-04-19 10:01:58'
+  name: TOL_ASG12815096
+  reference_genome: ~
+  organism: ~
+  accession_number: SAMEA12367008
+  common_name: Sepiola atlantica
+  description: ~
+  taxon_id: 70193
+  father: ~
+  mother: ~
+  replicate: ~
+  ethnicity: ~
+  gender: ~
+  cohort: ~
+  country_of_origin: ~
+  geographical_region: ~
+  sanger_sample_id: TOL_ASG12815096 
+  control: '0'
+  supplier_name: FD30880039
+  public_name: xcSepAtla11
+  sample_visibility: ~
+  strain: ~
+  consent_withdrawn: '0'
+  donor_id: SAMEA12366955
+  phenotype: ~
+  developmental_stage: ~
+  control_type: ~
+- id_sample_tmp: '8351523'
+  id_lims: SQSCP
+  uuid_sample_lims: d957a4d0-1fbe-11ed-ac3e-fa163eea3084
+  id_sample_lims: '8424425'
+  last_updated: '2022-10-04 13:03:47'
+  recorded_at: '2022-10-04 13:03:47'
+  deleted_at: ~
+  created: '2022-10-04 13:03:47'
+  name: DTOL13094222
+  reference_genome: ~
+  organism: ~
+  accession_number: SAMEA11478756
+  common_name: Tripolium pannonicum
+  description: ~
+  taxon_id: 74787
+  father: ~
+  mother: ~
+  replicate: ~
+  ethnicity: ~
+  gender: ~
+  cohort: ~
+  country_of_origin: ~
+  geographical_region: ~
+  sanger_sample_id: DTOL13094222
+  control: '0'
+  supplier_name: EDTOL02272
+  public_name: daTriPann2
+  sample_visibility: ~
+  strain: ~
+  consent_withdrawn: '0'
+  donor_id: SAMEA11478534
+  phenotype: ~
+  developmental_stage: ~
+  control_type: ~
+- id_sample_tmp: '8374252'
+  id_lims: SQSCP
+  uuid_sample_lims: 6d154fe8-2cf7-11ed-850a-fa163eac3af7
+  id_sample_lims: '8447194'
+  last_updated: '2022-10-04 13:03:47'
+  recorded_at: '2022-10-04 13:03:47'
+  deleted_at: ~
+  created: '2022-10-04 13:03:47'
+  name: DTOL13108142
+  reference_genome: ~
+  organism: ~
+  accession_number: SAMEA7849357
+  common_name: Pterostichus madidus
+  description: ~
+  taxon_id: 767470
+  father: ~
+  mother: ~
+  replicate: ~
+  ethnicity: ~
+  gender: ~
+  cohort: ~
+  country_of_origin: ~
+  geographical_region: ~
+  sanger_sample_id: DTOL13108142
+  control: '0'
+  supplier_name: NHMUK014444566
+  public_name: icPteMadi3
+  sample_visibility: ~
+  strain: ~
+  consent_withdrawn: '0'
+  donor_id: SAMEA7849267
+  phenotype: ~
+  developmental_stage: ~
+  control_type: ~
+- id_sample_tmp: '8409933'
+  id_lims: SQSCP
+  uuid_sample_lims: 924e6d32-43e3-11ed-9f51-fa163eea3084
+  id_sample_lims: '8482981'
+  last_updated: '2022-10-04 12:53:42'
+  recorded_at: '2022-10-04 12:53:42'
+  deleted_at: ~
+  created: '2022-10-04 12:53:40'
+  name: 5976STDY13173124
+  reference_genome: ~
+  organism: ~
+  accession_number: SAMEA110743979
+  common_name: Platycheirus albimanus
+  description: Non-Plant
+  taxon_id: 414846
+  father: ~
+  mother: ~
+  replicate: ~
+  ethnicity: ~
+  gender: ~
+  cohort: ~
+  country_of_origin: ~
+  geographical_region: ~
+  sanger_sample_id: 5976STDY13173124
+  control: '0'
+  supplier_name: Ox002753
+  public_name: idPlaAlba4
+  sample_visibility: ~
+  strain: ~
+  consent_withdrawn: '0'
+  donor_id: 5976STDY13173124
+  phenotype: ~
+  developmental_stage: ~
+  control_type: ~
+- id_sample_tmp: '8409942'
+  id_lims: SQSCP
+  uuid_sample_lims: fb6d5516-43e4-11ed-bf20-fa163eea3084
+  id_sample_lims: '8482990'
+  last_updated: '2022-10-04 13:03:47'
+  recorded_at: '2022-10-04 13:03:47'
+  deleted_at: ~
+  created: '2022-10-04 13:03:47'
+  name: TOL_ASG13067103
+  reference_genome: ~
+  organism: ~
+  accession_number: SAMEA13602795
+  common_name: Cruzella marina
+  description: ~
+  taxon_id: 140242
+  father: ~
+  mother: ~
+  replicate: ~
+  ethnicity: ~
+  gender: ~
+  cohort: ~
+  country_of_origin: ~
+  geographical_region: ~
+  sanger_sample_id: TOL_ASG13067103
+  control: '0'
+  supplier_name: FD30823600
+  public_name: peCruMari1
+  sample_visibility: ~
+  strain: ~
+  consent_withdrawn: '0'
+  donor_id: SAMEA13602751
+  phenotype: ~
+  developmental_stage: ~
+  control_type: ~
+- id_sample_tmp: '9523049'
+  id_lims: SQSCP
+  uuid_sample_lims: aae4d9a4-11ea-11ef-a1ed-024224dd57f4
+  id_sample_lims: '9678190'
+  last_updated: '2024-05-14 12:08:26'
+  recorded_at: '2024-05-14 12:08:26'
+  deleted_at: ~
+  created: '2024-05-14 12:08:25'
+  name: KNX_DTOL14815334
+  reference_genome: ~
+  organism: ~
+  accession_number: SAMEA115359117
+  common_name: Mus musculus
+  description: ~
+  taxon_id: 10090
+  father: ~
+  mother: ~
+  replicate: ~
+  ethnicity: ~
+  gender: ~
+  cohort: ~
+  country_of_origin: ~
+  geographical_region: ~
+  sanger_sample_id: KNX_DTOL14815334
+  control: '0'
+  supplier_name: SAN00003702
+  public_name: mMusMuc108
+  sample_visibility: ~
+  strain: ~
+  consent_withdrawn: '0'
+  donor_id: SAMEA115359047
+  phenotype: ~
+  developmental_stage: ~
+  control_type: ~

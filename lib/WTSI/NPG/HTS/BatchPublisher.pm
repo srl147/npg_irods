@@ -5,6 +5,7 @@ use namespace::autoclean;
 use Data::Dump qw[pp];
 use File::Basename;
 use File::Spec::Functions qw[catfile];
+use List::MoreUtils qw[any];
 use Moose;
 use MooseX::StrictConstructor;
 use Try::Tiny;
@@ -34,6 +35,13 @@ has 'publish_state' =>
    lazy          => 1,
    documentation => 'A map of file path to a boolean value, which ' .
                     'is set true if the file was published');
+
+has 'mlwh_locations' =>
+  (isa           =>'WTSI::NPG::HTS::LocationWriter',
+   is            =>'ro',
+   required      => 0,
+   documentation => 'An object used to build and write information to be ' .
+                    'loaded into the seq_product_irods_locations table.');
 
 has 'obj_factory' =>
   (does          => 'WTSI::NPG::HTS::DataObjectFactory',
@@ -213,6 +221,34 @@ has 'require_checksum_cache' =>
 
         $self->publish_state->set_published($file);
         $self->info("Published '$dest' [$num_processed / $num_files]");
+
+        if ($self->mlwh_locations){
+          my $target;
+          my $pid;
+          # The simplest way to obtain product ids and to discover whether an
+          # object is the target of a run/analysis is to search its metadata.
+          for my $avu (@primary_avus){
+            if (
+                (any { $avu->{attribute} eq $_ } qw/target alt_target/) &&
+                ($avu->{value} == 1)
+            ){
+                $target = 1;
+            }elsif ($avu->{attribute} eq 'id_product') {
+              $pid = $avu->{value};
+            }
+            if (defined($target) && $pid){
+              last;
+            }
+          }
+          my ($ext) = $filename =~ m/[.]([^.]+)$/msx;
+          if ($target && any { $ext eq $_ } qw/bam cram/) {
+            $self->mlwh_locations->add_location(
+              pid  => $pid,
+              coll => $dest_coll,
+              path => $filename
+            );
+          }
+        }
       }
       catch {
         $num_errors++;
@@ -315,7 +351,7 @@ Keith James E<lt>kdj@sanger.ac.ukE<gt>
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-Copyright (C) 2017, 2018 Genome Research Limited. All Rights Reserved.
+Copyright (C) 2017, 2018, 2021 Genome Research Limited. All Rights Reserved.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the Perl Artistic License or the GNU General

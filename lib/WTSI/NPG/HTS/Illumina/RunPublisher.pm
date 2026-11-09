@@ -10,6 +10,7 @@ use JSON;
 use Moose;
 use MooseX::StrictConstructor;
 use Try::Tiny;
+use Readonly;
 
 use WTSI::DNAP::Utilities::Params qw[function_params];
 
@@ -242,6 +243,9 @@ sub publish_collection {
     }
 
     $self->write_restart_file;
+    if ($self->mlwh_locations) {
+      $self->write_locations;
+    }
 
     return ($num_files, $num_processed, $num_errors);
   }
@@ -341,6 +345,7 @@ sub publish_alignment_files {
        is_paired_read   => $obj->is_paired_read,
        num_reads        => $num_reads,
        reference        => $obj->reference,
+       dehumanised      => $obj->dehumanised,
        seqchksum        => $seqchksum_digest);
   };
 
@@ -361,9 +366,10 @@ sub publish_alignment_files {
   # Configure archiving to a custom sub-collection here
   return $self->_tree_publish_product_level(\@files,
                                             $composition_file,
-
-                                            $primary_avus,
-                                            $secondary_avus);
+                                            {
+                                              primary        => $primary_avus,
+                                              secondary      => $secondary_avus
+                                            });
 }
 
 =head2 publish_index_files
@@ -386,12 +392,6 @@ sub publish_index_files {
 
   my ($name, $directory, $suffix) =
     $self->parse_composition_filename($composition_file);
-
-  my $num_reads = $self->_find_num_reads($name);
-  if ($num_reads == 0) {
-    $self->debug("Skipping index files for $name: no reads");
-    return (0, 0, 0);
-  }
 
   my $primary_avus = sub {
     my ($obj) = @_;
@@ -422,8 +422,10 @@ sub publish_index_files {
   # Configure archiving to a custom sub-collection here
   return $self->_tree_publish_product_level(\@files,
                                             $composition_file,
-                                            $primary_avus,
-                                            $secondary_avus);
+                                            {
+                                              primary   => $primary_avus,
+                                              secondary => $secondary_avus
+                                            });
 }
 
 =head2 publish_ancillary_files
@@ -466,8 +468,10 @@ sub publish_ancillary_files {
   # Configure archiving to a custom sub-collection here
   return $self->_tree_publish_product_level(\@files,
                                             $composition_file,
-                                            $primary_avus,
-                                            $secondary_avus);
+                                            {
+                                              primary   => $primary_avus,
+                                              secondary => $secondary_avus
+                                            });
 }
 
 =head2 publish_genotype_files
@@ -511,8 +515,10 @@ sub publish_genotype_files {
   # Configure archiving to a custom sub-collection here
   return $self->_tree_publish_product_level(\@files,
                                             $composition_file,
-                                            $primary_avus,
-                                            $secondary_avus);
+                                            {
+                                              primary   => $primary_avus,
+                                              secondary => $secondary_avus
+                                            });
 }
 
 =head2 publish_qc_files
@@ -555,8 +561,10 @@ sub publish_qc_files {
   # Configure archiving to a custom sub-collection here
   return $self->_tree_publish_product_level(\@files,
                                             $composition_file,
-                                            $primary_avus,
-                                            $secondary_avus);
+                                            {
+                                              primary   => $primary_avus,
+                                              secondary => $secondary_avus
+                                            });
 }
 
 sub read_restart_file {
@@ -570,6 +578,13 @@ sub write_restart_file {
   my ($self) = @_;
 
   $self->publish_state->write_state($self->restart_file);
+  return;
+}
+
+sub write_locations{
+  my ($self) = @_;
+
+  $self->mlwh_locations->write_locations;
   return;
 }
 
@@ -589,12 +604,13 @@ sub _tree_publish_run_level {
 }
 
 sub _tree_publish_product_level {
-  my ($self, $files, $composition_file, $primary_avus_callback,
-      $secondary_avus_callback) = @_;
+  my ($self, $files, $composition_file, $callbacks) = @_;
 
   $composition_file or
     $self->logconfess('A non-empty composition_file argument is required');
-  $secondary_avus_callback ||= sub { return () };
+  if (!exists($callbacks->{secondary})) {
+    $callbacks->{secondary} = sub {return ()};
+  }
 
   my $composition = $self->read_composition_file($composition_file);
 
@@ -608,8 +624,8 @@ sub _tree_publish_product_level {
   my $tree_publisher = $self->_make_tree_publisher($obj_factory);
   return $tree_publisher->publish_tree
       ($files,
-       primary_cb   => $primary_avus_callback,
-       secondary_cb => $secondary_avus_callback);
+       primary_cb   => $callbacks->{primary},
+       secondary_cb => $callbacks->{secondary});
 }
 
 sub _make_tree_publisher {
@@ -621,6 +637,9 @@ sub _make_tree_publisher {
                    obj_factory      => $obj_factory,
                    publish_state    => $self->publish_state,
                    source_directory => $self->source_directory);
+  if ($self->mlwh_locations){
+    push @init_args, mlwh_locations   => $self->mlwh_locations;
+  }
   if ($self->has_max_errors) {
     if ($self->num_errors >= $self->max_errors) {
       $self->logconfess(sprintf q[Internal error: the number of publish ].
@@ -837,10 +856,12 @@ you select a different restart file for each job.
 
 Keith James <kdj@sanger.ac.uk>
 
+Marina Gourtovaia <mg8@sanger.ac.uk>
+
 =head1 COPYRIGHT AND DISCLAIMER
 
-Copyright (C) 2015, 2016, 2017, 2018, 2019 Genome Research
-Limited. All Rights Reserved.
+Copyright (C) 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024,
+              2025 Genome Research Ltd.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the Perl Artistic License or the GNU General

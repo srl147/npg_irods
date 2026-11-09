@@ -1,4 +1,260 @@
-Upcoming
+Unreleased
+
+Release 2.57.1 (2026-07-22)
+ - CI updates
+
+Release 2.57.0 (2026-06-01)
+ - Specify alt tempdir in IsoSeq publishing
+
+Release 2.56.0 (2026-04-15)
+ - Pacbio - add PbPathLister as a wrapper for WTSI::NPG::HTS::PathLister
+   to exclude dupicate 'pb_internal' files which appeared in off-instrument
+   runfolders in SMRT Link v25.4
+ - Update CI matrix to use perl 5.34.1
+  
+Release 2.55.1 (2026-02-18)
+ - Pacbio
+   - tweak run deletion to skip runfolders restored only for SMRT Link GUI
+   - small fix for target meta data on single sample Ampli-Fi pools
+ - CI updates
+
+Release 2.55.0 (2025-10-31)
+ - PacBio - add support for new Twist ULI barcodes
+
+Release 2.54.4 (2025-10-09)
+ - CI updates
+
+Release 2.54.3 (2025-05-15)
+ - Add iRODS 4.3.3 and 4.3.4 to test matrix
+ - Remove iRODS 4.2.11 and 4.2.12 from test matrix
+ - Fix check for number of reads obtained via samtools
+
+Release 2.54.2 (2025-04-14)
+
+- Fix check for number of reads obtained via samtools.
+
+Release 2.54.1 (2025-04-08)
+ - Expression '$num_read < $num_reads <= $num_records' does not compile under
+   Perl v5.26.1 on an Ubuntu 18.04.6 hosts where production jobs run. Replaced
+   with '($num_read < $num_reads) && ($num_read <= $num_records)'.
+
+Release 2.54.0 (2025-03-31)
+ - Use samtools head rather than samtools view with open3 shenanigans.
+ - Fix the case where is_paired_read can read fewer than expected reads
+ - Add tests for reading bam/cram files that have zero or one read in them.
+ - Added 'dehumanised' iRODS metadata to a list of primary metadata and
+   provided a method of computing the value for this metadata from the
+   content of the CRAM/BAM file header.
+
+Release 2.53.0 (2025-01-17)
+ - Fixed perlbrew installation by installing libdevel-patchperl-perl in
+   GitHub runner.
+ - Allow for naming differences in unbarcoded bam files from SMRT Link
+   deplexing
+ - Pacbio - in v13.1 onboard processing changes
+ - Update the annotators of Illumina and Pacbio to accept sample_uuid and
+   sample_lims
+ - Remove unused ONT files and references
+ - Install libdevel-patchperl-perl in GitHub runner
+ - Bump Singularity to 4.2.2 for CI
+
+Release 2.52.0 (2024-12-02)
+ - Minor changes and tests for IsoSeq csi publishing
+ - collect pipeline central, postqc and product release logs from BAM_basecalls
+   folder
+ - Pacbio IsoSeq single cell archiving
+ - Fix: missing schema param in inferred id run test
+
+Release 2.51.0 (2024-10-25)
+ - Banish more Sequels
+
+Release 2.50.1 (2024-10-04)
+ - Remove sequel specific references to Sequel from the code
+ - Following a release on 07/09/2024, see https://metacpan.org/dist/App-perlbrew/changes
+   the checksum of the script served by https://install.perlbrew.pl had changed.
+   https://install.perlbrew.pl is a redirect to raw
+   https://github.com/gugod/App-perlbrew/blob/master/perlbrew-install, so
+   the change originates from GitHub and can be trusted. Our CI flow compares
+   the checksum of the downloaded script to the expected value. We now store
+   an updated expected checksum value, which corresponds to the latest release.
+
+Release 2.50.0 (2024-08-07)
+ - SMRT Link IsoSeq analysis has changed substantially in SMRT Link v13
+   so old code and tests related to this was removed - further work is
+   planned in this area to remove the Sequel subdirectory entirely. As
+   it is an evolving area in sporadic use the loading code for IsoSeq
+   analysis was moved to a separate new IsoSeqPublisher module.
+     - added new WTSI::NPG::HTS::PacBio::Sequel::IsoSeqPublisher module
+       which handles loading of analysis output from SMRT Link
+       pb_segment_reads_and_isoseq jobs
+     - old code for IsoSeq loading completely removed from
+       WTSI::NPG::HTS::PacBio::Sequel::AnalysisPublisher
+
+Release 2.49.2
+ - Prevent access to a live mlwh database from tests.
+
+Release 2.49.1
+ - Removing Tidyp dependency from CI
+ - Add iRODS 4.3.2, remove 4.3-nightly
+
+Release 2.49.0
+ - PacBio iRODS data - set QC state metadata when it is safe to do so.
+ - Allow non deplexed Revio cells to publish now
+ - Analysis loading changes post SMRT Link v13
+   Remove very old test data and update some tests. Add new test data and minor
+   code change to support loading of data from deplexing jobs in SMRT Link v13+
+   (very rare as only done when deplexing on instrument is incorrect).
+
+Release 2.48.0
+ - Add sequencing_control.subreads.bam and index file to PacBio run
+   archiving. These files can be used to regenerate QC metrics.
+ - Add new (SMRT Link v13+) reports.zip file to PacBio Revio data 
+   archiving.
+
+Release 2.47.1
+
+  - Amended policy on archival of index files. No longer skipping
+    index files if there are no reads.
+
+Release 2.47.0
+
+  - Fixed some outdated POD
+  - 'alt_target' iRODS metadata attribute value is now computed in the
+    same way as the 'target' metadata attribute value. To be consistent
+    with prior practice, the 'alt_target' value is assigned only when it
+    is true. This resolves the issue of tag zero files, which are
+    produced by the alternative process, previously having 'alt_target'
+    metadata attribute value of 1.
+  - Following introduction of ss_<STUDY_ID>_human iRODS groups to
+    provide limited access to split-out human data and consolidation
+    of logic about assignment of study_related iRODS groups in
+    https://github.com/wtsi-npg/perl-irods-wrap/pull/297, the following
+    changes were made:
+      - contains_nonconsented_human and update_group_permissions methods
+        were dropped from WTSI::NPG::HTS::Illumina::AlnDataObject
+      - ss_<STUDY_ID>_human iRODS groups were added to test fixtures
+
+Release 2.46.0
+
+  - Add iRODS 4.3.1 Ubuntu 22.04 as a optional test target
+  - Minor change to PacBio AnalysisPublisher
+  - Update test matrix iRODS versions
+      Remove the combination of 4.2.11 clients with a 4.2.7 server
+      Add the combination of 4.2.7 clients with a 4.2.7 server
+      Add the combination of 4.3-nightly clients with a 4.3-nightly server
+
+Release 2.45.0
+
+  - Add link to metadata repository to README
+  - Refactor to use common iquest wrapper from perl-irods-wrap
+  - Add Perl 5.34 to CI matrix
+  - Fixed a bug in the PacBio metadata updater.
+      Added a missing plate number when calling the find_pacbio_runs()
+      method that retrieves up-to-date metadata from mlwh.
+  - Refactor by hoisting environment variables
+  - Install iRODS clients outside of working directory
+
+Release 2.44.0
+
+  - Changes to PacBio iRODS loading to support multi plate runs
+    (requires npg_id_generation v4.0.0)
+  - Unify location file writing for Illumina and PacBio products
+  
+Release 2.43.0
+
+  - Change PacBio min deplex default as all data now HiFi
+  - Remove dependency on npg_ml_warehouse for generating PacBio product IDs
+  - Add Singularity container support for iRODS clients, remove Conda-based
+    clients
+
+Release 2.42.0
+
+  - Add location file writer and implement in pacbio run/analysis publisher.
+  - Change docker image repository used by CI
+
+Release 2.41.0
+  - Add --logconf option to npg_publish-tree.pl
+  - Add id_product metadata to PacBio data objects.
+  - Remove WTSI::NPG::HTS::PacBio::Sequel::APIClient (moved to
+    wtsi-npg/perl-dnap-utilities).
+  - Add sequence diagrams of metadata flow when publishing.
+
+Release 2.40.0
+  - PacBio - added support niche run folder processing special case
+    to support an ongoing PhD process (not likely to be required once
+    the project is finished)
+  - Update action versions in CI
+
+Release 2.39.0
+  - PacBio - support iRODS loading for changed deplexing off instrument
+    files & directory structure in SMRT Link v11.
+  - Update to ubuntu-latest in actions
+
+Release 2.38.1
+
+  - Update baton version in github actions workflow to 4.0.0
+
+Release 2.38.0
+
+  - PacBio - add new files from new run configurations in SMRT Link v11.0
+    to RunPublisher
+  - Update baton version in github actions workflow to 3.3.0
+  - Remove iRODS 4.2.10 from github actions workflow
+  - archive metrics files produced by SamHaplotag
+  - PacBio - extend runauditor to cope with fixing permissions on
+    runfolder subdirectories created by deplexing on board
+  - Demote error to warning when EBI and iRODS checksums are different
+
+Release 2.37.1
+
+  - Bugfix: Object limit for the iRODS single replica object-finding query
+
+Release 2.37.0
+
+  - Bugfix: iquest parsing for the iRODS single replica object-finding query
+  - Change the field used to determine IsCCS for PacBio
+  - Archive the substitution metrics qc JSON file for Illumina
+
+Release 2.36.0
+
+  - Add ML warehouse JSON file generation to npg_publish_tree.pl
+  - Add standard input option for providing metadata to npg_publish_tree.pl
+  - Add --limit CLI option to npg_update_single_replica_metadata.pl
+
+  - Bug fix: Avoid creating duplicate entries in the ML warehouse JSON file
+    generated by the Illumina run publisher
+
+Release 2.35.0
+
+  - Tweak Sequel AnalysisPublisher for SMRT Link 10.2 to allow xml
+    in entry-points subdir.
+  - Correct propagation of the ml warehouse db connection to st::api::lims
+    object. The publisher was previously written to cache the connection
+    created by LIMSFactory, but failed to do so, leading to creation of
+    multiple connections. 
+
+Release 2.34.0
+
+  - PacBio - prep and load fasta file output from IsoSeq analysis.
+  - Change baton version in actions to 3.2.0 for compatibility
+  - Add Haplotagging logs to log publisher
+  
+Release 2.33.0
+
+  - Tweaks to ebi meta updater to account for files with no md5 in
+    the subtrack db (now common due to special projects).
+  - Also avoid nulls in ebi_sub_acc field for ebi meta updates.
+  - Tests simplified.
+
+Release 2.32.0
+ 
+  - Archive raw pulldown metrics (gatk_collecthsmetrics) txt file from
+    the qc directory.
+  - Disable the samtools CRAM reference cache during tests.
+
+Release 2.31.1
+
+  - substitution_analyis filename fix
 
 Release 2.31.0
 
@@ -14,7 +270,7 @@ Release 2.30.0
  - Add PacBio API query (query_datasets) to support mlwarehouse loading.
  - Add some extra checks before loading PacBio secondary analysis data.
  - Update alignment file header parser for minimap2.
-- Install NPG and CPAN Perl modules separately in CI, to avoid caching
+ - Install NPG and CPAN Perl modules separately in CI, to avoid caching
    NPG modules.
  - Move from Travis CI to GitHub Actions.
 
@@ -101,20 +357,20 @@ Release 2.18.0
 
 Release 2.17.0
 
- -  Uniquify pac_bio_run records from mlwarehouse - to handle unexpected
-    duplicate entries and stop adding target = 1 to scraps BAM files. 
-    Change secondary archiving to support SMRT Link v8.
- -  Use samtools executable instead of samtools_irods.
- -  Travis CI tests:
-      use prod WSI Conda channel,
-      use specific version of samtools, pin it to v.1.10.0,
-      to enable samtools' access to iRODS, install HTS lib irods pligins
-      since they do not come with the samtools v.1.10.0 we have in the
-      channel
- -  Test change to cope with samtools v.1.10.0 inserting PG lines into
-    the header.
- -  WTSI::NPG::HTS::PacBio::Sequel::AnalysisPublisher restrict filename 
-    checks to just the filename
+ - Uniquify pac_bio_run records from mlwarehouse - to handle unexpected
+   duplicate entries and stop adding target = 1 to scraps BAM files. 
+   Change secondary archiving to support SMRT Link v8.
+ - Use samtools executable instead of samtools_irods.
+ - Travis CI tests:
+     use prod WSI Conda channel,
+     use specific version of samtools, pin it to v.1.10.0,
+     to enable samtools' access to iRODS, install HTS lib irods pligins
+     since they do not come with the samtools v.1.10.0 we have in the
+     channel
+ - Test change to cope with samtools v.1.10.0 inserting PG lines into
+   the header.
+ - WTSI::NPG::HTS::PacBio::Sequel::AnalysisPublisher restrict filename 
+   checks to just the filename
  - Publish new files generated by GATK.
  - Removed ONT publishing support (including inotify and HDF5 dependencies).
 

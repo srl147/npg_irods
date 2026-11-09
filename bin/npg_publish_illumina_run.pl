@@ -14,9 +14,11 @@ use Pod::Usage;
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::NPG::HTS::Illumina::RunPublisher;
 use WTSI::NPG::HTS::LIMSFactory;
+use WTSI::NPG::HTS::LocationWriter;
 
 our $VERSION = '';
 our $DEFAULT_ZONE = 'seq';
+my $ILLUMINA = 'illumina';
 
 my $verbose_config = << 'LOGCONF'
 log4perl.logger = ERROR, A1
@@ -51,6 +53,7 @@ my $max_errors = 0;
 my $restart_file;
 my $source_directory;
 my $verbose;
+my $mlwh_json;
 
 my @include;
 my @exclude;
@@ -70,6 +73,7 @@ GetOptions('alt-process|alt_process=s'           => \$alt_process,
            'max-errors|max_errors=i'             => \$max_errors,
            'restart-file|restart_file=s'         => \$restart_file,
            'source-directory|source_directory=s' => \$source_directory,
+           'mlwh_json=s'                         => \$mlwh_json,
            'verbose'                             => \$verbose);
 
 # Process CLI arguments
@@ -130,6 +134,14 @@ if ($restart_file) {
 if ($max_errors) {
   push @pub_init_args, max_errors => $max_errors;
 }
+if ($mlwh_json) {
+  my @writer_init_args = (path =>$mlwh_json, platform_name => $ILLUMINA);
+  if ($alt_process){
+    push @writer_init_args, alt_process => 1;
+  }
+  push @pub_init_args, mlwh_locations =>
+    WTSI::NPG::HTS::LocationWriter->new(@writer_init_args);
+}
 
 my $publisher = WTSI::NPG::HTS::Illumina::RunPublisher->new(@pub_init_args);
 
@@ -140,6 +152,10 @@ sub handler {
 
   $log->info('Writing restart file ', $publisher->restart_file);
   $publisher->write_restart_file;
+  if ($mlwh_json) {
+    $log->info('Writing locations file ', $publisher->mlwh_locations->path);
+    $publisher->write_locations;
+  }
   $log->error("Exiting due to $signal");
   exit 1;
 }
@@ -203,6 +219,8 @@ npg_publish_illumina_run --source-directory <path> [--collection <path>]
                       default restart file is "<archive dir>/published.json".
    --source-directory
    --source_directory The instrument runfolder path to load.
+   --mlwh_json        The json file to which information about the run will be
+                      added for upload to ml_warehouse. Optional
    --logconf          A log4perl configuration file. Optional.
    --verbose          Print messages while processing. Optional.
 
@@ -268,7 +286,7 @@ Keith James <kdj@sanger.ac.uk>
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-Copyright (C) 2016, 2017, 2018, 2019 Genome Research Limited. All Rights
+Copyright (C) 2016, 2017, 2018, 2019, 2021 Genome Research Limited. All Rights
 Reserved.
 
 This program is free software: you can redistribute it and/or modify

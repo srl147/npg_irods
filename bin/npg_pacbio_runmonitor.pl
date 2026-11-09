@@ -13,7 +13,7 @@ use Readonly;
 
 use WTSI::DNAP::Warehouse::Schema;
 use WTSI::NPG::iRODS;
-use WTSI::NPG::HTS::PacBio::Sequel::RunMonitor;
+use WTSI::NPG::HTS::PacBio::RunMonitor;
 
 
 our $VERSION = '';
@@ -43,7 +43,7 @@ GetOptions('collection=s'            => \$collection,
            'verbose'                 => \$verbose);
 
 
-my $module = 'WTSI::NPG::HTS::PacBio::Sequel::RunMonitor';
+my $module = 'WTSI::NPG::HTS::PacBio::RunMonitor';
 
 if ($log4perl_config) {
   Log::Log4perl::init($log4perl_config);
